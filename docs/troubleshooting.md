@@ -1,6 +1,6 @@
 # Troubleshooting notes
 
-Issues I hit while building the lab, and how each was resolved.
+Problems from building the lab, including two I avoided before they happened, and how I handled each one.
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -9,7 +9,7 @@ Issues I hit while building the lab, and how each was resolved.
 | `dpkg: error: cannot access archive 'splunkforwarder-*.deb'` on the forwarder host | Downloaded the 1.3 GB Splunk Enterprise package instead of the Universal Forwarder | Deleted it and downloaded the URL containing `universalforwarder` |
 | `^[[200~wget ...~` and `wget: command not found` | Bracketed-paste escape codes from the terminal | Pasted the command again |
 | A path appeared at the shell prompt by itself | In PuTTY, highlighting copies and right-click pastes | Ctrl+C to clear the line |
-| Forwarder connected but `auth.log` / `syslog` didn't index | UF runs as `splunkfwd`; those files are `syslog:adm` mode 640 | `sudo usermod -aG adm splunkfwd`, then restart the forwarder |
+| Forwarder would connect but send no data from `auth.log` / `syslog` | The forwarder runs as `splunkfwd`, and those files are `syslog:adm` mode 640 | Ran `sudo usermod -aG adm splunkfwd` before restarting the forwarder |
 | `Invoke-WebRequest : Missing an argument for parameter 'Uri'` | Multi-line paste over RDP split the command; also opened PowerShell (x86) | Opened 64-bit PowerShell and ran each line separately, storing the URL in `$url` |
 | `Login failed` from `splunk list forward-server -auth ...` | The install command still had the placeholder password, so that became the real password | Used the password actually set at install (and you can change it with `splunk edit user admin -password <new> -auth admin:<old>`) |
 | PowerShell parse errors when a password was typed on the command line | Characters like `@`, `(`, `;`, `%` are special in PowerShell | Use letters and numbers, or wrap the value in single quotes |

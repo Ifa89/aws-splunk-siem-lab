@@ -2,7 +2,7 @@
 
 Centralized log collection on AWS: a Splunk Enterprise server on EC2 that receives Linux and Windows logs from Splunk Universal Forwarders running on two other EC2 instances.
 
-I built this in the AWS Academy Learner Lab as a project for my Cybersecurity A.A.S. at Northern Virginia Community College. It covers the basic plumbing behind a SOC's SIEM: deploying servers, opening only the ports each one needs, installing forwarders, and confirming the logs actually arrive and can be searched.
+I built this in the AWS Academy Learner Lab as a project for my Cybersecurity A.A.S. at Northern Virginia Community College. It covers the setup work behind a SOC's SIEM: deploying the servers, opening only the ports each one needs, installing forwarders, and checking that the logs arrive and are searchable.
 
 ![All three logs from the Windows server counted in Splunk](screenshots/14-splunk-windows-by-source.png)
 
@@ -23,7 +23,7 @@ flowchart LR
     Admin -- "RDP 3389" --> UF2
 ```
 
-The forwarders send to the Splunk Server's **private** IP. That keeps log traffic inside the VPC, lets port 9997 stay closed to the internet, and means nothing breaks when the Learner Lab restarts and hands out new public IPs.
+The forwarders send to the Splunk Server's private IP. Log traffic stays inside the VPC, port 9997 stays closed to the internet, and the forwarders keep working when the Learner Lab restarts and hands out new public IPs.
 
 ## Environment
 
@@ -34,7 +34,7 @@ The forwarders send to the Splunk Server's **private** IP. That keeps log traffi
 | Windows2019 Server | Windows Server 2019 Base | t2.medium | us-east-1a | 172.31.35.194 | 3389 (RDP) |
 
 - Key pair: `vockey` (Learner Lab default)
-- Splunk Enterprise and Universal Forwarder version: **10.6.1.1**
+- Splunk Enterprise and Universal Forwarder version: 10.6.1.1
 - Splunk Server storage: 50 GiB gp3; the other two use default storage
 - The forwarders need no inbound rules for logging, because they open the connection outbound to 9997
 
@@ -51,9 +51,9 @@ The forwarders send to the Splunk Server's **private** IP. That keeps log traffi
 
 Each step has a full walkthrough in [`docs/`](docs/) and a script in [`scripts/`](scripts/).
 
-1. **Splunk Server** ([docs/01-splunk-server.md](docs/01-splunk-server.md)): launched the EC2 instance, connected with PuTTY, installed Splunk Enterprise, enabled boot-start, turned on receiving on 9997, and created the `wineventlog` index.
-2. **Linux forwarder** ([docs/02-linux-forwarder.md](docs/02-linux-forwarder.md)): installed the Universal Forwarder, pointed it at `172.31.40.91:9997`, and monitored `syslog` and `auth.log`.
-3. **Windows forwarder** ([docs/03-windows-forwarder.md](docs/03-windows-forwarder.md)): connected over RDP, installed the forwarder silently with `msiexec`, and collected the Application, System and Security event logs into `wineventlog`.
+1. [Splunk Server](docs/01-splunk-server.md): launched the EC2 instance, connected with PuTTY, installed Splunk Enterprise, set it to start on boot, turned on receiving on 9997, and created the `wineventlog` index.
+2. [Linux forwarder](docs/02-linux-forwarder.md): installed the Universal Forwarder, pointed it at `172.31.40.91:9997`, and monitored `syslog` and `auth.log`.
+3. [Windows forwarder](docs/03-windows-forwarder.md): connected over RDP, installed the forwarder silently with `msiexec`, and sent the Application, System and Security event logs to `wineventlog`.
 
 Configuration files are in [`configs/`](configs/), and the searches I used to check the data are in [`searches/splunk-searches.md`](searches/splunk-searches.md).
 
@@ -61,28 +61,28 @@ Configuration files are in [`configs/`](configs/), and the searches I used to ch
 
 | | |
 |---|---|
-| ![EC2 instances](screenshots/08-ec2-all-instances.png) **All three instances** running as t2.medium in us-east-1a | ![Splunk Web](screenshots/05-splunk-web-home.png) **Splunk Web** on port 8000 |
-| ![Linux forwarder](screenshots/06-linux-uf-monitor-and-forward.png) **Linux UF** monitoring syslog and auth.log, active forward to 9997 | ![Linux logs](screenshots/07-splunk-linux-logs.png) **Linux events** searchable in Splunk |
-| ![Windows UF](screenshots/11-windows-uf-status.png) **Windows UF** connected, service running | ![inputs.conf](screenshots/12-windows-inputs-conf.png) **Windows inputs.conf** for the three event logs |
-| ![wineventlog index](screenshots/10-wineventlog-index.png) **`wineventlog` index** created on the server | ![Windows events](screenshots/13-splunk-windows-events.png) **Windows events** from `EC2AMAZ-O58QAED` |
+| ![EC2 instances](screenshots/08-ec2-all-instances.png) All three instances running as t2.medium in us-east-1a | ![Splunk Web](screenshots/05-splunk-web-home.png) Splunk Web on port 8000 |
+| ![Linux forwarder](screenshots/06-linux-uf-monitor-and-forward.png) Linux forwarder monitoring syslog and auth.log, with an active forward to 9997 | ![Linux logs](screenshots/07-splunk-linux-logs.png) Linux events in Splunk |
+| ![Windows UF](screenshots/11-windows-uf-status.png) Windows forwarder connected and its service running | ![inputs.conf](screenshots/12-windows-inputs-conf.png) Windows inputs.conf for the three event logs |
+| ![wineventlog index](screenshots/10-wineventlog-index.png) The `wineventlog` index on the server | ![Windows events](screenshots/13-splunk-windows-events.png) Windows events from `EC2AMAZ-O58QAED` |
 
 The rest are in [`screenshots/`](screenshots/). The AWS account ID, my lab user name, passwords and my browser bookmarks are redacted. The public IPs that appear were temporary Learner Lab addresses and are no longer assigned to these instances.
 
-## Problems I ran into
+## Problems and gotchas
 
 Full notes are in [docs/troubleshooting.md](docs/troubleshooting.md).
 
-- **First instances were the wrong size.** My earlier t3.micro had 1 GB of RAM, which isn't enough for Splunk Enterprise, and the instances were in the wrong Availability Zone. AZ can't be changed after launch, so I rebuilt all three to spec.
-- **An "All TCP from anywhere" rule crept into the launch wizard.** I caught it before launch and replaced it with SSH only.
-- **Downloaded the wrong package.** I grabbed the 1.3 GB Splunk Enterprise `.deb` on the forwarder host instead of the Universal Forwarder, deleted it, and pulled the correct package.
-- **The forwarder couldn't read Ubuntu's logs.** The UF runs as `splunkfwd`, and `/var/log/syslog` and `auth.log` are only readable by the `adm` group. Fix: `sudo usermod -aG adm splunkfwd`, then restart.
-- **Windows events need a destination index.** If a forwarder sends to an index that doesn't exist, the indexer drops the data, so I created `wineventlog` on the server before installing the Windows forwarder.
-- **Multi-line PowerShell pastes broke over RDP.** The download command arrived split in two. I re-ran the commands one line at a time and rewrote the config step as single-line commands.
-- **Timestamps looked 5 hours off.** The EC2 servers run on UTC and my screenshots are in Eastern time.
+- My first two instances (a t3.micro and a t3.small) were in the wrong Availability Zones, and the t3.micro's 1 GB of RAM is too little for Splunk Enterprise. An instance can't be moved to another AZ after launch, so I built all three from scratch to spec.
+- The launch wizard had pre-filled a rule allowing all TCP ports from anywhere. I changed it to SSH only before launching.
+- On the forwarder host I first downloaded the 1.3 GB Splunk Enterprise package instead of the Universal Forwarder, then deleted it and downloaded the right one.
+- The forwarder runs as `splunkfwd`, but Ubuntu only lets the `adm` group read `/var/log/syslog` and `auth.log`. I ran `sudo usermod -aG adm splunkfwd` before restarting the forwarder so it could read them.
+- The indexer drops events sent to an index that doesn't exist, so I created `wineventlog` on the server before installing the Windows forwarder.
+- A multi-line paste into PowerShell over RDP split the download command in two. I re-ran the commands one line at a time and rewrote the config step as single-line commands.
+- Event timestamps were 5 hours ahead of my screenshots because the EC2 servers run on UTC and my clock is on Eastern time.
 
 ## What I'd change for production
 
-This is a lab. In a real environment I would:
+For a real deployment I would:
 
 - Restrict SSH, RDP and Splunk Web to an admin IP range or a VPN, or drop SSH/RDP entirely in favor of AWS Systems Manager Session Manager
 - Turn on TLS between the forwarders and the indexer, and HTTPS for Splunk Web
@@ -121,4 +121,4 @@ aws-splunk-siem-lab/
 
 ## Author
 
-**Ifayet** · [github.com/Ifa89](https://github.com/Ifa89) · Cybersecurity A.A.S., Northern Virginia Community College
+Ifayet · [github.com/Ifa89](https://github.com/Ifa89) · Cybersecurity A.A.S., Northern Virginia Community College
