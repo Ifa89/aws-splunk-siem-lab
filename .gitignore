@@ -1,0 +1,17 @@
+# Never commit keys or credentials
+*.pem
+*.ppk
+*.key
+user-seed.conf
+.env
+
+# Installers are large and versioned by Splunk
+*.deb
+*.rpm
+*.msi
+*.tgz
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
